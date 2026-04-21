@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hidden Gems App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- MapLibre CDN -->
+  <link
+    href="https://unpkg.com/maplibre-gl@3.3.0/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
+  <script src="https://unpkg.com/maplibre-gl@3.3.0/dist/maplibre-gl.js"></script>
+  <!-- Satoshi font (Google Fonts alternative) -->
+  <link href="https://fonts.googleapis.com/css2?family=Satoshi:wght@700;500&display=swap" rel="stylesheet">
+  <!-- Erode font (Google Fonts) -->
+  <link href="https://fonts.googleapis.com/css2?family=Erode:wght@400;700&display=swap" rel="stylesheet">
+  <!-- PapaParse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --font-serif: 'Erode', serif;
+      --font-sans: 'Satoshi', Arial, sans-serif;
+      --text: #1A1A1A;
+      --bg: #F9F8F4;
+      --line: #E5E5E5;
+      --ruby: #E0115F;
+      --sapphire: #0F52BA;
+      --emerald: #00B571;
+      --amber: #FFBF00;
+      --onyx: #0A0A0A;
+      --amethyst: #9966CC;
+      --aquamarine: #00BFBF;
+      /* The accent can change per page/section */
+      --accent: var(--emerald);
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      margin: 0;
+      min-height: 100vh;
+    }
+    header {
+      padding: 2rem 1rem 1rem 1rem;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+    }
+    h1, h2, h3 {
+      font-family: var(--font-sans);
+      margin: 0.4em 0 0.2em 0;
+      letter-spacing: -0.02em;
+    }
+    h1 {
+      font-weight: 700;
+      font-size: 2.6rem;
+      color: var(--accent);
+      background: linear-gradient(to right, var(--emerald), var(--sapphire));
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+    h2 {
+      font-weight: 700;
+      font-size: 1.3rem;
+    }
+    h3 {
+      font-weight: 500;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+    main {
+      margin: 2rem auto;
+      max-width: 960px;
+      padding: 0 1rem;
+    }
+    nav {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: var(--text);
+      font: inherit;
+      font-weight: 500;
+      padding: 0.7rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .08s;
+    }
+    nav button.active, nav button:hover {
+      background: var(--line);
+      color: var(--accent);
+      font-weight:700;
+    }
+    .survey, .map-section, .list-section, .profile-section, .district-section, .attraction-modal {
+      display: none;
+    }
+    .active-section {
+      display: block;
+      animation: fade-in 0.5s;
+      min-height: 60vh;
+    }
+    @keyframes fade-in {
+      from { opacity: 0 }
+      to { opacity: 1 }
+    }
+    label {
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.3em;
+    }
+    input[type="range"] {
+      width: 60%;
+      margin-bottom: 1em;
+    }
+    .survey-select, .survey-types, .survey-niche {
+      margin: 1rem 0;
+    }
+    .survey-types label, .survey-dimension label {
+      display: inline-block;
+      margin-right: 0.7rem;
+      font-weight: 400;
+      cursor: pointer;
+    }
+    .survey-types input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+    .survey {
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 2rem;
+      box-shadow: 0 2px 16px rgba(160,160,160,0.06);
+      font-family: var(--font-sans);
+    }
+    .gems-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      margin: 2rem 0;
+      align-items: stretch;
+    }
+    .gem-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      border: 1px solid var(--line);
+      flex-basis: 320px;
+      flex-grow: 1;
+      padding: 1.3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: outline 0.14s;
+    }
+    .gem-card:hover, .gem-card.selected {
+      outline: 3px solid var(--accent);
+      z-index: 2;
+    }
+    .gem-title {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 1.13em;
+      color: var(--accent);
+      margin-bottom: 0.38em;
+      line-height: 1.4;
+    }
+    .gem-attributes {
+      font-size: 0.85em;
+      color: #555;
+      margin-bottom: 0.7em;
+      font-family: var(--font-sans);
+    }
+    .gem-tags {
+      margin: 0.7em 0 0.2em 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3em;
+    }
+    .gem-tag {
+      background: var(--line);
+      color: var(--accent);
+      border-radius: 6px;
+      font-size: 0.9em;
+      padding: 0.18em 0.67em;
+      font-weight: 600;
+      margin: 0 0.17em 0.2em 0;
+      font-family: var(--font-sans);
+    }
+    .gem-img {
+      width: 100%;
+      max-height: 144px;
+      object-fit: cover;
+      border-radius: 7px;
+      margin-top: 0.6em;
+      margin-bottom: 0.8em;
+      background:#E5E5E5;
+    }
+    .map-box {
+      width: 100%;
+      height: 510px;
+      margin: 1.7rem 0;
+      border-radius: 16px;
+      overflow: hidden;
+      outline: 1px solid var(--line);
+    }
+    .attraction-modal {
+      position: fixed;
+      z-index: 99;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(249,248,244,0.98);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 64px 0 0 0;
+    }
+    .attraction-modal-inner {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 640px;
+      width: 98%;
+      padding: 2.1rem;
+      border: 1px solid var(--line);
+      box-shadow: 0px 30px 40px rgba(0,0,0,0.12);
+      overflow-y: auto;
+      max-height: 90vh;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 22px;
+      right: 22px;
+      text-align: center;
+      background: var(--line);
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      color: var(--accent);
+      font-size: 1.5em;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 36px;
+      z-index: 10;
+      transition: background .09s;
+    }
+    .modal-close:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .modal-title {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 2rem;
+      color: var(--accent);
+      margin: 0 0 0.2em 0;
+    }
+    .modal-section {
+      margin: 1.1em 0;
+    }
+    .modal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4em;
+      margin-bottom: 1em;
+      margin-top: 0.7em;
+    }
+    .modal-tag {
+      color: #fff;
+      font-size:0.96em;
+      background: var(--accent);
+      padding: 0.18em 0.7em;
+      border-radius: 10px;
+      font-weight: 500;
+      font-family: var(--font-sans);
+    }
+    .modal-img {
+      width: 100%;
+      max-height: 265px;
+      object-fit: cover;
+      border-radius: 13px;
+      margin-top: 0.1em;
+      border: 1px solid var(--line);
+    }
+    .modal-body {
+      font-family: var(--font-serif);
+      font-size: 1.01em;
+      margin: 0.8em 0 1em 0;
+      color: #232323;
+      line-height: 1.6;
+    }
+    .modal-label {
+      display: block;
+      color: #2C2C2C;
+      font-family: var(--font-sans);
+      font-size: 1.04em;
+      font-weight: 600;
+      margin: 0.6em 0 0.06em 0;
+    }
+    .modal-link {
+      color: var(--sapphire);
+      text-decoration: none;
+      word-break: break-all;
+      font-weight: 500;
+      font-size: 1.06em;
+    }
+    .modal-keyvalue {
+      font-size: 0.97em;
+      margin-bottom: 0.5em;
+    }
+    .modal-dimension {
+      background: var(--line);
+      margin: 0.15em 0;
+      border-radius: 5px;
+      padding: 0.3em 0.75em;
+      display: flex;
+      gap: 1.5em;
+      align-items: center;
+      font-family: var(--font-sans);
+      font-size: 0.98em;
+      font-weight:500;
+    }
+    .liked, .visited {
+      color: var(--amber); font-weight: 800;
+      margin-right: 0.5em;
+    }
+    .achievement {
+      background: var(--amber);
+      color: var(--onyx);
+      padding: 0.17em 0.73em;
+      border-radius: 8px;
+      font-size: 0.96em;
+      font-weight: 700;
+      margin: 0.2em;
+      display: inline-block;
+      font-family: var(--font-sans);
+    }
+    .profile-section {
+      background: #fff;
+      border-radius: 13px;
+      border: 1px solid var(--line);
+      padding: 2rem;
+      box-shadow: 0 2px 16px rgba(160,160,160,0.06);
+      font-family: var(--font-sans);
+    }
+    /* Responsive styles */
+    @media (max-width: 1050px) {
+      .gems-list {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+    @media (max-width:600px) {
+      h1 { font-size: 1.5rem;}
+      main { padding: 0;}
+      .gems-list { gap: 1rem;}
+      .gem-card { min-width: unset;}
+      .map-box { height: 290px;}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hidden Gems 🪩 Hong Kong</h1>
+    <div style="font-family:'Erode',serif; color:#2c2c2c; font-size:1.12em; margin-top:0.7em; max-width:540px; margin-left:auto; margin-right:auto;">
+      Discover <span style="color:var(--emerald); font-weight:bold;">personalized "gems"</span> — unique places in Hong Kong most travelers never find.<br/>
+      <span style="color:var(--ruby)">Pick your vibes. Get your gems. Explore, your way.</span>
+    </div>
+    <nav>
+      <button id="nav-survey" class="active">Survey</button>
+      <button id="nav-map">Map</button>
+      <button id="nav-list">List</button>
+      <button id="nav-profile">Profile</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Survey Section -->
+    <section class="survey active-section" id="section-survey">
+      <form id="surveyForm">
+        <div>
+          <h2>Start with your style:</h2>
+          <div class="survey-select">
+            <label><input type="radio" name="preset" value="culture" />Culture Lover</label>
+            <label><input type="radio" name="preset" value="average" />Average MUA Student</label>
+            <label><input type="radio" name="preset" value="nature" />Nature Explorer</label>
+            <label><input type="radio" name="preset" value="kenneth" />Kenneth Tang</label>
+          </div>
+        </div>
+
+        <div style="font-size:0.95em;color:#888">or use the sliders to set your style below!</div>
+        <div class="survey-dimensions">
+          <div>
+            <div style="margin:0.7em 0;font-size:1.1em"><b>Choose your vibe on 5 axes</b></div>
+            <label>Emotional Experience: <span id="emval">5</span> </label>
+            <input type="range" min="0" max="10" step="1" value="5" name="emotional" id="slider-emotional">
+            <label>Scenic Beauty: <span id="scval">5</span></label>
+            <input type="range" min="0" max="10" step="1" value="5" name="scenic" id="slider-scenic">
+            <label>Local Authenticity: <span id="loval">5</span> </label>
+            <input type="range" min="0" max="10" step="1" value="5" name="local" id="slider-local">
+            <label>Novelty/Surprise: <span id="noval">5</span></label>
+            <input type="range" min="0" max="10" step="1" value="5" name="novelty" id="slider-novelty">
+            <label>Photogenic Quality: <span id="pqval">5</span></label>
+            <input type="range" min="0" max="10" step="1" value="5" name="photogenic" id="slider-photogenic">
+          </div>
+          <div class="survey-types">
+            <label><input type="checkbox" name="notypes" value="nature">No Nature</label>
+            <label><input type="checkbox" name="notypes" value="museum">No Museums</label>
+            <label><input type="checkbox" name="notypes" value="shopping">No Shopping</label>
+            <label><input type="checkbox" name="notypes" value="indoor">No Indoor</label>
+          </div>
+          <div class="survey-niche">
+            <label>Level of Niche / Mainstream:</label>
+            <input type="range" min="0" max="10" step="1" value="5" name="niche" id="slider-niche"> <span id="nval">5</span>
+          </div>
+        </div>
+        <button type="submit"
+          style="display:block;font-family:var(--font-sans);margin:1.7em auto 0 auto;padding:0.9em 1.9em;font-size:1.16em;border:none;border-radius:7px;background:var(--emerald);color:#fff;letter-spacing:0.05em; font-weight:700; box-shadow:0 3px 11px 0 rgba(0,99,80,0.085);cursor:pointer;">
+          Find My Gems!
+        </button>
+      </form>
+    </section>
+
+    <!-- Map Section -->
+    <section class="map-section" id="section-map">
+      <h2>Your Gems on the Map</h2>
+      <div class="map-box">
+        <div id="gems-map" style="width: 100%; height: 100%;"></div>
+      </div>
+      <div style="font-size:1em;color:#666;">Click a gem on the map to view details.</div>
+    </section>
+
+    <!-- List Section -->
+    <section class="list-section" id="section-list">
+      <h2>Hidden Gems List</h2>
+      <div class="gems-list" id="gems-list">
+        <!-- Cards inserted here -->
+      </div>
+    </section>
+
+    <!-- Profile Section -->
+    <section class="profile-section" id="section-profile">
+      <h2>My Profile & Saved Gems</h2>
+      <p>
+        <b>Preferences:</b>
+        <div id="profile-preferences"></div>
+      </p>
+      <hr style="margin:1em 0;">
+      <h3>Saved Attractions</h3>
+      <div id="profile-likes" style="min-height:3em"></div>
+      <h3>Visited Attractions</h3>
+      <div id="profile-visited" style="min-height:3em"></div>
+      <hr>
+      <div id="profile-achievements" style="font-size:1.11em; margin:0.7em 0"></div>
+    </section>
+
+    <!-- Attraction Modal -->
+    <div class="attraction-modal" id="attraction-modal" style="display:none;">
+      <div class="attraction-modal-inner" id="modal-inner">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </main>
+<script>
+const GEM_CATEGORIES = {
+  'Shopping Malls': { color: 'var(--amber)', glyph: '💎', gem: 'Amber' },
+  'Parks & Gardens': { color: 'var(--emerald)', glyph: '🟩', gem: 'Emerald Round' },
+  'Hiking Trails': { color: 'var(--emerald)', glyph: '🔷', gem: 'Emerald Oval' },
+  'Waterfalls': { color: 'var(--emerald)', glyph: '💚', gem: 'Emerald Marquise' },
+  'Viewpoints': { color: 'var(--emerald)', glyph: '🟢', gem: 'Emerald Cushion' },
+  'Temples': { color: 'var(--ruby)', glyph: '♦', gem: 'Ruby Emerald Cut' },
+  'Museums': { color: 'var(--ruby)', glyph: '🔴', gem: 'Ruby Princess Cut' },
+  'Street Art': { color: 'var(--ruby)', glyph: '🔺', gem: 'Ruby Pear' },
+  'Heritage Walks': { color: 'var(--ruby)', glyph: '🔻', gem: 'Ruby Trilliant' },
+  'Amusement': { color: 'var(--amethyst)', glyph: '💜', gem: 'Amethyst' },
+};
+let gemsData = [], filteredGems = [];
+let preferences = {
+  preset: '',
+  emotional: 5, scenic: 5, local: 5, novelty: 5, photogenic: 5, niche: 5,
+  notypes: []
+};
+let likes = new Set(), visited = new Set();
+
+const sectionIDs = ['survey','map','list','profile'];
+function showSection(sec) {
+  sectionIDs.forEach(s=> {
+    document.getElementById(`section-${s}`).classList.remove('active-section');
+    document.getElementById(`nav-${s}`).classList.remove('active');
+  });
+  document.getElementById(`section-${sec}`).classList.add('active-section');
+  document.getElementById(`nav-${sec}`).classList.add('active');
+  if (sec === 'map') { setTimeout(() => { map && map.resize(); }, 200);}
+  if (sec === 'profile') updateProfile();
+}
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.onclick = ()=>showSection(btn.id.replace('nav-',''));
+});
+//---- Survey control
+const sliders = ['emotional','scenic','local','novelty','photogenic','niche'];
+sliders.forEach(sl=> {
+  const el = document.getElementById('slider-'+sl);
+  if (!el) return;
+  el.oninput = (e)=> { document.getElementById(sl.slice(0,2)+'val').innerText = e.target.value;}
+});
+document.getElementById('surveyForm').onsubmit = function(e) {
+  e.preventDefault();
+  // Get preset or sliders
+  let f = new FormData(e.target);
+  preferences = {
+    preset:      f.get('preset') || '',
+    emotional:   Number(f.get('emotional')),
+    scenic:      Number(f.get('scenic')),
+    local:       Number(f.get('local')),
+    novelty:     Number(f.get('novelty')),
+    photogenic:  Number(f.get('photogenic')),
+    niche:       Number(f.get('niche')),
+    notypes:     Array.from(document.querySelectorAll("input[name=notypes]:checked")).map(n=>n.value)
+  };
+  if (preferences.preset) {
+    // Preset values (example, adjust as desired)
+    if (preferences.preset === 'culture') Object.assign(preferences,{emotional:8, scenic:5, local:9, novelty:6, photogenic:7});
+    if (preferences.preset === 'nature') Object.assign(preferences,{emotional:6, scenic:9, local:5, novelty:7, photogenic:9});
+    if (preferences.preset === 'average') Object.assign(preferences,{emotional:5, scenic:5, local:5, novelty:5, photogenic:5});
+    if (preferences.preset === 'kenneth') Object.assign(preferences,{emotional:4, scenic:8, local:3, novelty:2, photogenic:9});
+  }
+  filterGems();
+  showSection('list');
+};
+function filterGems() {
+  // Simple preference filtering example
+  filteredGems = gemsData.filter(gem=>{
+    if (preferences.notypes.includes('nature') && (gem.category_hktb||"").toLowerCase().includes('nature')) return false;
+    if (preferences.notypes.includes('museum') && (gem.category_trip||"").toLowerCase().includes('museum')) return false;
+    if (preferences.notypes.includes('shopping') && (gem.category_trip||"").toLowerCase().includes('shopping')) return false;
+    // 1-10 matching (could be more algorithmic using scores)
+    function rel(d, p) {
+      let v = Number(gem['perplexity_'+d])||0;
+      return (Math.abs((v-p*1.5)) < 4); // scaled to score
+    }
+    if (!rel('emotional_experience', preferences.emotional)) return false;
+    if (!rel('scenic_beauty', preferences.scenic)) return false;
+    if (!rel('local_authenticity', preferences.local)) return false;
+    if (!rel('novelty_and_surprise', preferences.novelty)) return false;
+    if (!rel('photogenic_quality', preferences.photogenic)) return false;
+    return true;
+  }).slice(0, 20); // Only show top 20
+  renderList();
+  renderMap();
+}
+//---- Gems list and modal
+function renderList() {
+  let el = document.getElementById('gems-list');
+  el.innerHTML = '';
+  for (let gem of filteredGems) {
+    let cat = (gem.category_hktb || gem.category_trip || gem.category_ta || "");
+    let sty = '';
+    let catObj = GEM_CATEGORIES[cat.trim()].color || 'var(--accent)';
+    let tagList = (gem.tags_hktb||'').split(',').map(t=>t.trim()).filter(v=>v).map(t=>`<span class="gem-tag">${t}</span>`).join('');
+    el.insertAdjacentHTML('beforeend',`
+      <div class="gem-card" style="--accent:${catObj}" tabindex="0" onclick="showGemModal('${gem.name.replaceAll("'","") || ""}')">
+        <div class="gem-title">${gem.name || '(Untitled)'}</div>
+        <img class="gem-img" src="${firstAvailableImage(gem)}" alt="image"/>
+        <div class="gem-attributes">
+          <b>Category:</b> ${cat||''}<br>
+          <b>Rating:</b> ${gem.rating_unified || '–'} <b>·</b> <b>Reviews:</b> ${gem.review_count_unified||'–'}
+        </div>
+        <div class="gem-tags">${tagList}</div>
+        <div>
+        <span style="font-size:1.24em; color:var(--amber); font-family:var(--font-sans)">${likes.has(gem.name)?'★':''}</span>
+        <span style="color:var(--accent);">Details &rarr;</span>
+        </div>
+      </div>
+    `);
+  }
+}
+function firstAvailableImage(gem) {
+  return String(gem.photo_url_trip || gem.photo_url_ta || gem.photo_url_hktb || '').split(',')[0] || 'https://placehold.co/400x200/EEE/222?text=No+Image';
+}
+window.showGemModal = function(name) {
+  let gem = filteredGems.find(t=>t.name===name) || gemsData.find(t=>t.name===name);
+  if (!gem) return;
+  let tagList = (gem.tags_hktb||'').split(',').map(t=>t.trim()).filter(v=>v).map(t=>`<span class="modal-tag">${t}</span>`).join('');
+  let likestr = likes.has(gem.name) ? `<span class="liked">&#9733; Liked</span>`:'';
+  let visitedstr = visited.has(gem.name) ? `<span class="visited">&#10003; Visited</span>`:'';
+  let sections = `
+    <div class="modal-title">${gem.name||''}</div>
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <img src="${firstAvailableImage(gem)}" class="modal-img"/>
+    <div class="modal-body">${gem.scored_summary||''}</div>
+    <div class="modal-section">${tagList}</div>
+    <div class="modal-section">
+      <b>Categories:</b> ${(gem.category_trip||'')}, ${(gem.category_ta||'')}, ${(gem.category_hktb||'')}
+    </div>
+    <div class="modal-section">
+      <span class="modal-label">Links:</span>
+      <div class="modal-keyvalue">Google Maps: <a class="modal-link" href="${gem.google_maps_url||'#'}" target="_blank">Open in Maps</a></div>
+      <div class="modal-keyvalue">Trip: <a class="modal-link" href="${gem.trip_url||'#'}" target="_blank">Trip Page</a></div>
+      <div class="modal-keyvalue">Tripadvisor: <a class="modal-link" href="${gem.ta_url||'#'}" target="_blank">TA Page</a></div>
+      <div class="modal-keyvalue">HKTB: <a class="modal-link" href="${gem.hktb_url||'#'}" target="_blank">HKTB</a></div>
+    </div>
+    <div class="modal-section">
+      <b>Ratings:</b>
+      <div class="modal-dimension">Unified: ${gem.rating_unified||'-'} (${gem.review_count_unified||'?'} reviews)</div>
+      <div class="modal-dimension">Google: ${gem.gm_rating||'-'} (${gem.gm_review_count||'?'} reviews)</div>
+    </div>
+    <div class="modal-section">
+      <b>Location: </b> ${(gem.location_hktb||'')} - <b>Distance from downtown:</b> ${(gem.distance_downtown||'–')}
+      <br>
+      <b>Address: </b> ${gem.gm_address||''}
+      <br>
+      <b>Working hours:</b> ${gem.gm_working_hours||''}
+    </div>
+    <div class="modal-section">
+      <b>Score by Dimension:</b>
+      <div class="modal-dimension">Emotional Experience: ${gem.perplexity_emotional_experience||'-'}, Scenic Beauty: ${gem.perplexity_scenic_beauty||'-'}, Local Authenticity: ${gem.perplexity_local_authenticity||'-'}, Novelty: ${gem.perplexity_novelty_and_surprise||'-'}, Photogenic: ${gem.perplexity_photogenic_quality||'-'}</div>
+    </div>
+    <div style="margin-top:1.3em">
+      <button onclick="likeAttraction('${gem.name.replaceAll("'","")}')"
+        style="background:var(--amber);color:var(--onyx);padding:0.5em 1.1em;border-radius:8px;border:none;font-weight:bold;font-family:var(--font-sans);margin-right:1em;font-size:1.08em;">
+        ${likes.has(gem.name)?'Unlike':'Like'}</button>
+      <button onclick="visitAttraction('${gem.name.replaceAll("'","")}')"
+        style="background:var(--emerald);color:#fff;padding:0.5em 1.1em;border-radius:8px;border:none;font-family:var(--font-sans);font-weight:bold;font-size:1.06em;">
+        ${visited.has(gem.name)?'Mark Unvisited':'Mark Visited'}
+      </button>
+    </div>
+    <div style="margin-top:1.4em; color:#999;font-size:0.95em;">
+      <div><b>Google PlaceID:</b> ${gem.google_place_id || ''}</div>
+      <div><b>Source(s):</b> ${(gem.source || '')}</div>
+    </div>
+  `;
+  document.getElementById('modal-inner').innerHTML = sections;
+  document.getElementById('attraction-modal').style.display = '';
+}
+function closeModal() {
+  document.getElementById('attraction-modal').style.display = 'none';
+}
+window.closeModal = closeModal;
+window.likeAttraction = function(name) {
+  if (likes.has(name)) likes.delete(name); else likes.add(name);
+  renderList(); updateProfile(); closeModal();
+};
+window.visitAttraction = function(name) {
+  if (visited.has(name)) visited.delete(name); else visited.add(name);
+  renderList(); updateProfile(); closeModal();
+};
+//--- Profile Section
+function updateProfile() {
+  // Preferences
+  let cont = '';
+  for (let k of ['emotional','scenic','local','novelty','photogenic','niche']) {
+    cont += `<li>${k[0].toUpperCase()+k.slice(1)}: <b>${preferences[k]}</b></li>`;
+  }
+  document.getElementById('profile-preferences').innerHTML = `<ul>${cont}</ul>`;
+  let likedEls = Array.from(likes).map(name=>'• '+name).join('<br>');
+  document.getElementById('profile-likes').innerHTML = likedEls || '<i>No saved attractions.</i>';
+  let visitedEls = Array.from(visited).map(name=>'• '+name).join('<br>');
+  document.getElementById('profile-visited').innerHTML = visitedEls || '<i>No places visited yet.</i>';
+  let achv = '';
+  if (visited.size >= 3)
+    achv += `<span class="achievement">Gem Collector</span>`;
+  if (likes.size >= 5)
+    achv += `<span class="achievement">Gem Enthusiast</span>`;
+  document.getElementById('profile-achievements').innerHTML = achv || `<span style="color:#aaa;">No achievements yet.</span>`;
+}
+//--- MAP
+let map, markers=[];
+function renderMap() {
+  if (!map) {
+    map = new maplibregl.Map({
+      container: "gems-map",
+      style: "https://api.maptiler.com/maps/streets/style.json?key=w8Xi1JnKDje0z1AVtYZp",
+      center: [114.16, 22.32], // HK
+      zoom: 11,
+      maxZoom: 17,
+      minZoom: 10,
+      maxBounds: [[113.8,22.15],[114.47,22.57]],
+      // Attribution is required with MapTiler free key
+      attributionControl: false
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-left");
+  }
+  // Remove old markers
+  for (const m of markers) m.remove();
+  markers = [];
+  for (let gem of filteredGems) {
+    if (!gem.latitude || !gem.longitude) continue;
+    let el = document.createElement('div');
+    el.style.width = '24px';
+    el.style.height = '24px';
+    el.style.borderRadius = '50%';
+    const cat = (gem.category_hktb||gem.category_trip||'');
+    el.style.background = GEM_CATEGORIES[cat.trim()]?.color || 'var(--emerald)';
+    el.style.border = '2px solid white';
+    el.style.boxShadow = '0px 2px 8px rgba(0,0,0,0.19)';
+    el.title = gem.name||'';
+    el.innerHTML = '<span style="display:block;font-size:1.12em;text-align:center;line-height:20px;color:#fff">' + (GEM_CATEGORIES[cat.trim()]?.glyph || '💎') + '</span>';
+    el.onclick = ()=> { showGemModal(gem.name || '') };
+    let marker = new maplibregl.Marker(el)
+      .setLngLat([Number(gem.longitude), Number(gem.latitude)])
+      .addTo(map);
+    markers.push(marker);
+  }
+  if (filteredGems.length)
+    map.flyTo({
+      center: [
+        Number(filteredGems[0].longitude),
+        Number(filteredGems[0].latitude)
+      ], zoom: 12
+    });
+}
+
+//-- CSV LOADING
+function loadCSV() {
+  // Change the filename here (or let user upload via file input)
+  Papa.parse("attractions.csv", {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      gemsData = results.data;
+      filterGems();
+    }
+  });
+}
+loadCSV();
+
+</script>
+</body>
+</html>
